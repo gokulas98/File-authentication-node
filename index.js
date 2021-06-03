@@ -17,9 +17,8 @@ app.get("/login/:emp_id/:password", async(req, res) => {
         const details = await pool.query( "SELECT emp_id, password FROM registered_employee WHERE emp_id = $1 AND password = $2",[emp_id, password]);
         
         //Authentication funcion******************
-
-
-        if(authn==true){
+       
+        if (details.rows.length>0) {
             res.set('Content-Type', 'text/plain')
             res.status(200).send('Successfully logged in')
             console.log("User authenicated")
