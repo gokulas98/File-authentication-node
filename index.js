@@ -15,7 +15,7 @@ const { request } = require("express");
 var jsonParser = bodyParser.json();
 
 // url encoded parser
-var urlencodedParser = bodyParser.urlencoded({extended: false});
+// var urlencodedParser = bodyParser.urlencoded({extended: false});
 
 //ROUTES
 
@@ -87,7 +87,7 @@ app.post("/login",jsonParser, async(req,res) => {
                 res.set('Content-Type', 'text/plain')
                 console.log("User authenticated")
 
-                let token = jwt.sign(resp,"secret", {expiresIn:1000}) // means valid for 60 seconds and second parameter is the secret code.
+                let token = jwt.sign(resp,"secret", {expiresIn:10}) // means valid for 60 seconds and second parameter is the secret code.
                 res.status(200).send({auth:true, token:token});
             }
         })
