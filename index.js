@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const pool = require("./db");
 var bodyParser = require("body-parser");
+var bcrypt= require('bcrypt');
 
 var jwt = require("jsonwebtoken");
 
@@ -61,8 +62,6 @@ function verifyToken(req, res, next) {
     }) 
 }
 
-
-
 // LOGIN
 app.post("/login",jsonParser, async(req,res) => {
     try{
@@ -72,23 +71,31 @@ app.post("/login",jsonParser, async(req,res) => {
         let emp_id = req.body.emp_id;
         let password = req.body.password;
         
-        let qr = `select * from registered_employee where emp_id = '${emp_id}' and password = '${password}' `; /// need to add bcrypt(password) once bcrypt is included.
+        let qr = `select * from registered_employee where emp_id = '${emp_id}' `; /// need to add bcrypt(password) once bcrypt is included.
         await pool.query(qr,(err, result) =>{
             // console.log(result);
             if(err || result.rows.length==0 ){
                 res.status(500).send({error: "login failed"});
             }
             else{
-                // res.status(200).send({success: "login success"});
-                let resp = {
-                    id : result.rows[0].emp_id,
-                    user_name: result.rows[0].user_name
+                const aFunction = async(password) => {
+                    // ...
+                    if(await bcrypt.compare(password, result.rows[0].password)) {
+                        let resp = {
+                            id : result.rows[0].emp_id,
+                            user_name: result.rows[0].user_name
+                        }
+                        res.set('Content-Type', 'text/plain')
+                        console.log("User authenticated")
+        
+                        let token = jwt.sign(resp,"secret", {expiresIn:1000}) // means valid for 60 seconds and second parameter is the secret code.
+                        res.status(200).send({auth:true, token:token});
+                    }
+                    else{
+                        res.status(500).send({error: "login failed"});
+                    }
                 }
-                res.set('Content-Type', 'text/plain')
-                console.log("User authenticated")
-
-                let token = jwt.sign(resp,"secret", {expiresIn:10}) // means valid for 60 seconds and second parameter is the secret code.
-                res.status(200).send({auth:true, token:token});
+                aFunction(password);
             }
         })
     }catch(err) {
@@ -103,9 +110,9 @@ app.post("/register", jsonParser ,async(req, res) => {
         const emp_id = req.body.emp_id;
         const user_name = req.body.user_name;
         const email = req.body.email;
-        const password = req.body.password;
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
-        const qr = ` insert into registered_employee(emp_id, user_name, email, password) values ('${emp_id}', '${user_name}', '${email}', '${password}') `;
+        const qr = ` insert into registered_employee(emp_id, user_name, email, password) values ('${emp_id}', '${user_name}', '${email}', '${hashedPassword}') `;
         await pool.query(qr, (err, result) => {
             if(err){
                 res.send({error: "Operation failed"})
@@ -122,8 +129,8 @@ app.post("/register", jsonParser ,async(req, res) => {
 app.get("/view", verifyToken , jsonParser, async(req, res) => {
     try{
         const emp_id = req.body.emp_id;
-        const tts_code = req.body.tts_code;
-        const qr = ` select hours from logs where emp_id = '${emp_id}' and tts_code = '${tts_code}' `;
+        var qr = ` select hours, tts_code from logs where emp_id = '${emp_id}' `;
+        
         await pool.query(qr, (err, result) => {
             if(err) {
                 res.send({error: "Operation failed"});
@@ -133,7 +140,28 @@ app.get("/view", verifyToken , jsonParser, async(req, res) => {
                     res.send({error: "Invalid operation"});
                 }
                 else {
-                    res.send(result.rows[0]);
+                    let totalHours = 0;
+                    let unbilledHours = 0;
+                    let billedHours = 0;
+                    let length = result.rows.length;
+                    for(var i=0; i< length; i++) {
+                        if( String(result.rows[i].tts_code) == 'TRG'){
+                            unbilledHours = unbilledHours + Number(result.rows[i].hours);
+                        }
+                        else {
+                            billedHours = billedHours + Number(result.rows[i].hours);
+                        }
+                        totalHours = unbilledHours + billedHours;
+                    }
+                    console.log(unbilledHours, billedHours, totalHours); 
+
+                    let resp = {
+                        unbilledHours: unbilledHours,
+                        billedHours: billedHours,
+                        totalHours: totalHours
+                    }
+
+                    res.send(resp);// SENDS BUILD OR UNBUILD HOURS 
                 }
             }
         })
