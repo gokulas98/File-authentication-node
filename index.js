@@ -2,16 +2,20 @@ const express = require("express");
 const app = express();
 const pool = require("./db");
 const path=require("path")
+const cookieParser = require('cookie-parser')
+const bodyParser = require("body-parser");
+const jwt = require("jsonwebtoken");
 
-var bodyParser = require("body-parser");
-var jwt = require("jsonwebtoken");
 
 
+app.use( express.static( __dirname + '/client' ));
 app.use(express.json());
+app.use(cookieParser())
 
 // //CORS - Issue which can occur, when req comes from various domains on frontend. Must be done for public api;s where request comes from various domains.
 // const cors = require("cors");
 const { request } = require("express");
+const { strict } = require("assert");
 
 // json parsers
 var jsonParser = bodyParser.json();
@@ -30,8 +34,10 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 
 // middleware to verify token which is recieved with every request
 function verifyToken(req, res, next) {
-    let authHeader = req.headers.authorization;
-    console.log(req.headers.authorization)
+    //const token= req.header('Authorization').replace('Bearer ', '')
+    console.log("verifyToken function activated")
+    let authHeader = req.header('Authorization')
+    //let authHeader = req.headers.authorization;
     if(authHeader==undefined) {
         res.status(401).send({error:"no token provided"}) // means there is no authHeader, and that means user is not having token. Thus he is unauthorized.
     }
@@ -46,6 +52,29 @@ function verifyToken(req, res, next) {
     }) 
 }
 
+
+function verifyCookieToken(req, res, next) {
+    const token=req.cookies.jwt
+    console.log("/userhome jwt cookie:"+token)
+    console.log("verifyCookieToken function activated")
+    //let authHeader = req.headers.authorization;
+    if(token==undefined) {
+        //res.status(401).send({error:"no jwt token provided"}) // means there is no authHeader, and that means user is not having token. Thus he is unauthorized.
+        res.redirect('/')
+    }
+    //let token = authHeader.split(" ")[1] // in authorization header, it will include bearer <token>, we need only token. So we split based on space and then choose the second substring.
+    jwt.verify(token,"secret", function(err,decoded) {  // here we give the secret word, which we used while generating the token
+        if(err) {
+            res.status(500).send({error: "authentication failed"})
+        }
+        else {
+            next();
+        }
+    }) 
+}
+
+
+
 app.get('/', function(request, response) {
     // response.sendFile(path.join(__dirname + '/client/scripts.js'))
 	response.sendFile(path.join(__dirname + '/client/login.html'))
@@ -55,7 +84,7 @@ app.get('/', function(request, response) {
 // LOGIN
 app.post("/login",jsonParser, async(req,res) => {
     try{
-        console.log(req.body)
+        // console.log(req.body)
         if(req.body.emp_id==undefined || req.body.password==undefined) {
             res.status(500).send({error: "authentication failed"});
         }
@@ -77,8 +106,11 @@ app.post("/login",jsonParser, async(req,res) => {
                 res.set('Content-Type', 'text/plain')
                 console.log("User authenticated")
 
-                let token = jwt.sign(resp,"secret", {expiresIn:100000}) // means valid for 60 seconds and second parameter is the secret code.
-                res.status(200).send({auth:true, token:token});
+                let token = jwt.sign(resp,"secret", {expiresIn:5000}) // means valid for 60 seconds and second parameter is the secret code.
+                // res.status(200).send({auth:true, token:token});
+                res.cookie('jwt',token, { httpOnly: true , secure: true, maxAge: 5000,sameSite: true })
+                res.redirect('/userhome')
+                console.log("Cookie send")
             }
         })
     }catch(err) {
@@ -109,9 +141,28 @@ app.post("/register", jsonParser ,async(req, res) => {
     }
 });
 
+
+
+app.get("/userhome" , verifyCookieToken,  jsonParser, async(req, res)=>{
+    try{
+        const jwtToken=req.cookies.jwt
+        console.log("/userhome jwt cookie:"+jwtToken)
+        console.log("Authenticate user homepage loaded")
+        // res.send("User home page")
+        res.sendFile(path.join(__dirname +'/client/userHome.html'))
+        console.log("HTML send")
+
+    }catch(err){
+        console.err(err.message)
+    }
+});
+
+
+
+
+
 app.post("/view", verifyToken , jsonParser, async(req, res) => {
     try{
-        console.log(req)
         const emp_id = req.body.emp_id;
         const tts_code = req.body.tts_code;
         console.log(emp_id)
