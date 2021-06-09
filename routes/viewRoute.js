@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bodyParser = require("body-parser");
-const jsonParser = bodyParser.json();
 const jwt = require("jsonwebtoken");
 const routeController = require("../controllers/routeController");
 
@@ -21,6 +19,23 @@ function verifyToken(req, res, next) {
     }) 
 }
 
-router.get("/view", verifyToken , jsonParser, routeController.view);
+function verifyCookieToken(req, res, next) {
+    const token=req.cookies.jwt
+    console.log("verifyCookieToken function activated")
+    if(token==undefined) {
+        //res.status(401).send({error:"no jwt token provided"}) // means there is no authHeader, and that means user is not having token. Thus he is unauthorized.
+        res.redirect('/')
+    }
+    jwt.verify(token,"secret", function(err,decoded) {  // here we give the secret word, which we used while generating the token
+        if(err) {
+            res.status(500).send({error: "authentication failed"})
+        }
+        else {
+            next();
+        }
+    }) 
+}
+
+router.get("/view", verifyCookieToken , routeController.view);
 
 module.exports = router;

@@ -1,9 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const bodyParser = require("body-parser");
-const jsonParser = bodyParser.json();
+const path= require("path")
+const pool = require("../models/db");
 
 const routeController = require("../controllers/routeController");
-router.post("/login",jsonParser, routeController.login);
+
+router.get('/', function(request, response) {
+	response.sendFile(path.join(__dirname,'../views/login.html'))
+});
+
+router.post("/login",routeController.login);
+
 
 module.exports = router;

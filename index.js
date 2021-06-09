@@ -1,13 +1,17 @@
 const express = require("express");
-const cors = require('cors')
+const cors = require('cors');
+const cookieParser=require("cookie-parser");
 const app = express();
 
 const loginRoute = require('./routes/loginRoute');
 const viewRoute = require('./routes/viewRoute');
 const registerRoute = require('./routes/registerRoute');
+const userHome = require('./routes/userHome');
 
 //MIDDLEWARE
 app.use(cors());
+
+app.use( express.static( __dirname + '/views' ));
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -19,6 +23,11 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(cookieParser());
+// Parse URL-encoded bodies (as sent by HTML forms)
+app.use(express.urlencoded());
+
+// Parse JSON bodies (as sent by API clients)
 app.use(express.json());
 
 // ROUTES
@@ -29,6 +38,9 @@ app.use(registerRoute);
 
 // TO VIEW DETAILS
 app.use(viewRoute);
+
+//TO VIEW USER HOME PAGE
+app.use(userHome)
 
 app.listen(3000, () => { 
     console.log("server is listening on port 3000");
