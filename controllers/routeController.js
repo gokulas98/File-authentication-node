@@ -1,7 +1,8 @@
 const pool = require("../models/db");
 const bcrypt= require('bcrypt');
 const jwt = require("jsonwebtoken");
-const path= require("path")
+const path= require("path");
+// const { json } = require("body-parser");
 
 const login = async(req,res) => {
     try{
@@ -33,6 +34,7 @@ const login = async(req,res) => {
             
                             let token = jwt.sign(resp,"secret", {expiresIn:600000})// means valid for 60 seconds and second parameter is the secret code.
                             // console.log("token:"+token)
+                            res.cookie("EmpID" , emp_id,{ httpOnly: true , maxAge: 600000,sameSite: true });
                             res.cookie('jwt',token, { httpOnly: true , maxAge: 600000,sameSite: true })
                             res.redirect('/userhome')
                         }
@@ -52,8 +54,74 @@ const login = async(req,res) => {
 
 const view = async(req, res) => {
     try{
-        const emp_id = req.body.emp_id;
-        var qr = ` select hours, tts_code from logs where emp_id = '${emp_id}' `;
+        console.log(req.body)
+        console.log("COOKIE VALUE: "+req.cookies.EmpID)
+        const emp_id = req.cookies.EmpID;
+
+        const role_query= `select role from registered_employee where emp_id= '${emp_id}' `;
+        const role_details= await pool.query(role_query)
+        console.log(role_details.rows[0].role)
+        if(role_details.rows[0].role=="Super admin"){
+
+
+            
+        var qr = ` select emp_id, hours, tts_code from logs `;
+        
+        await pool.query(qr, (err, result) => {
+            if(err) {
+                res.send({error: "Operation failed"});
+            }
+            else {
+                if(result.rows.length == 0) {
+                    res.send({error: "Invalid operation"});
+                }
+                else {
+                    function effortCalculator(result){
+                    console.log(result)
+                    let totalHours = 0;
+                    let unbilledHours = 0;
+                    let billedHours = 0;
+                    
+                        if( String(result.tts_code) == 'TRG'){
+                            unbilledHours = unbilledHours + Number(result.hours);
+                        }
+                        else {
+                            billedHours = billedHours + Number(result.hours);
+                        }
+                        totalHours = unbilledHours + billedHours;
+                    console.log(unbilledHours, billedHours, totalHours); 
+                    let employee_id=result.emp_id
+
+                    let obj = {
+                        employee_id:employee_id,
+                        unbilledHours: unbilledHours,
+                        billedHours: billedHours,
+                        totalHours: totalHours
+                    }
+
+                    return obj
+                    }
+
+                    // resp=result.rows.forEach(effortCalculator)
+                    let resp=[]
+                    for (i = 0; i < result.rows.length; i++) {
+                        let emp_data=effortCalculator(result.rows[i]);
+                        resp.push(emp_data)
+                      } 
+                    // console.log(JSON.stringify(resp))
+                    
+
+                    res.status(200).send(JSON.stringify(resp));// SENDS BUILD OR UNBUILD HOURS 
+                }
+            }
+        })
+
+
+
+        }
+
+        else{
+        var qr = ` select emp_id, hours, tts_code from logs where emp_id = '${emp_id}' `;
         
         await pool.query(qr, (err, result) => {
             if(err) {
@@ -78,18 +146,22 @@ const view = async(req, res) => {
                         totalHours = unbilledHours + billedHours;
                     }
                     console.log(unbilledHours, billedHours, totalHours); 
+                    let employee_id=result.rows[0].emp_id
 
-                    let resp = {
+                    let obj = {employee_id:employee_id,
                         unbilledHours: unbilledHours,
                         billedHours: billedHours,
                         totalHours: totalHours
                     }
+                    let resp=[]
+                    resp.push(obj)
 
-                    res.send(resp);// SENDS BUILD OR UNBUILD HOURS 
+                    res.status(200).send(resp);// SENDS BUILD OR UNBUILD HOURS 
                 }
             }
         })
-    }catch(err){
+    }
+}catch(err){
         console.error(err.message);
     }
 };
@@ -130,15 +202,48 @@ const verifyCookieToken= async(req, res, next)=>{
             res.status(500).send({error: "authentication failed"})
         }
         else {
+            console.log('Token verification success')
             next();
         }
     }) 
 }
 
 const userHome= async(req,res)=>{
-	console.log(req.cookies.jwt)
-	res.sendFile(path.join(__dirname,'../views/userHome.html'))
+    const emp_id = req.cookies.EmpID;
+    const role_query= `select role from registered_employee where emp_id= '${emp_id}' `;
+    const role_details= await pool.query(role_query)
+    console.log(role_details.rows[0].role)
+    if(role_details.rows[0].role=="Super admin"){
+
+        res.sendFile(path.join(__dirname,'../views/welcomeSuperAdmin.html'))
+    }
+    else{
+        res.sendFile(path.join(__dirname,'../views/welcome.html'))
+    }
 }
+
+
+// const superadmin=async(req,res)=>{
+//     res.sendFile(path.join(__dirname,'../views/welcomeSuperAdmin.html'))
+// }
+
+
+
+// async function authRole(role){ return (req,res,next)=>{
+//     const emp_id = req.cookies.EmpID;
+//     const role_query= `select role from registered_employee where emp_id= '${emp_id}' `;
+//     const role_details= await pool.query(role_query)
+//     console.log(role_details.rows[0].role)
+//     if(role_details.rows[0].role !==role){
+//         res.status(401)
+//         return res.send("Not allowed")
+
+//     }
+//     else{
+//         next()
+//     }
+// }
+// }
 
 
 module.exports = {

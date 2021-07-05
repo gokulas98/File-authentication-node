@@ -1,0 +1,15 @@
+Story 1:
+As a user I want to login so that I can view the files which I am authorized to view..
+
+Tasks:
+#1.Create Login page.#
+#2.Create APIs to sent user credentials to the backend.#
+#3.Create APIs to fetch stores user data from database.#
+#4.Authenticating user credentials stored in database to the credentials logged in.#
+#5.Issueing JWT to the client for access to the authenticated user.#
+#6.Updating the Database with issued JWT and time of issuance.
+#7.Using JWT recieved from the server to the subsequent requests from the front end.
+#8.Checking the requests for issued JWT for authenticated user.
+#9.Set different roles to the user.
+#10.Set different previlages of viewing files to the different roles.
+#11.Allowing access to the authorized file to the user according to the roles.

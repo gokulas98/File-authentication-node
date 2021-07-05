@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+
+.hidden {
+
+  display: none;
+
+}
+
+</style>
+</head>
+<body>
+
+<h2>Welcome Super admin</h2>
+<p>Get logged efforts</p>
+
+<button onClick="toggleTable()">click here</button>
+
+<table id="myTable" style="width:50%" class="hidden">
+
+  <tr>
+
+    <th>employee id</th>
+
+    <th>Billed hours</th>
+
+    <th>unbilled hours</th> 
+
+    <th>Total hours</th>
+
+  </tr>
+
+  <tr>
+
+    <td>eg.1234</td>
+
+    <td>150</td> 
+
+    <td>50</td>
+    
+    <td>200</td>
+
+  </tr>
+
+  <tr>
+
+    <td>eg.5678</td>
+
+    <td>170</td> 
+
+    <td>30</td>
+    
+    <td>200</td>
+
+  </tr>
+
+</table>
+
+<script>
+function toggleTable() {
+  var table=document.getElementById("myTable");
+  console.log("Button clicked")
+  fetch("/view",  {
+			method: 'GET'
+    //   ,headers: {
+    //   'Content-Type': 'application/json'
+    // },
+		// 	body: JSON.stringify({ "emp_id":4567 }) // event.target is the form
+		}).then((response) => {
+        if (response.status !== 200) {
+            console.log('Looks like there was a problem. Status Code: ' + response.status);
+            return;
+        }
+        response.json().then((data) => {
+            // populate table with a minimum of 2 repos and save remainder into selection dropdown
+            console.log(data)
+            console.log(Object.keys(data).length)
+
+            for(i=0;i<Object.keys(data).length;i++){
+
+            var tr=document.createElement("tr");
+
+            tr.innerHTML ='<td>' + data[i].employee_id + '</td>' +
+                '<td>' + data[i].billedHours + '</td>' +
+                '<td>' + data[i].unbilledHours + '</td>'+
+                '<td>' + data[i].totalHours + '</td>';
+              
+            document.getElementById("myTable").appendChild(tr)
+            }
+
+            //   var rows = "<tr> \
+            //     <td>" + data.employee_id + "</td> \
+            //     <td>" + data.billedHours + "</td>\
+            //     <td>" + data.unbilledHours + "</td> \
+            //     <td>" + data.totalHours + "</td> \
+            // </tr>";
+            // document.getElementById(".myTable").append(rows)
+            document.getElementById("myTable").classList.toggle("hidden");
+            
+
+
+        });
+    }).catch((err) => {
+        console.log('Fetch Error :-S', err);
+    });
+
+
+}
+</script>
+</body>
+</html>
